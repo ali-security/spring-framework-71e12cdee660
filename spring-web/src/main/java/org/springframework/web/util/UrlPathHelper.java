@@ -405,7 +405,7 @@ public class UrlPathHelper {
 				uri = request.getRequestURI();
 			}
 		}
-		return decodeAndCleanUriString(request, uri);
+		return decodeAndCleanUriString(request, uri, false);
 	}
 
 	/**
@@ -458,7 +458,16 @@ public class UrlPathHelper {
 	 * Decode the supplied URI string and strips any extraneous portion after a ';'.
 	 */
 	private String decodeAndCleanUriString(HttpServletRequest request, String uri) {
-		uri = removeSemicolonContent(uri);
+		return decodeAndCleanUriString(request, uri, true);
+	}
+
+	/**
+	 * With {@code removeJsessionid=false} and {@code removeSemicolonContent=false}
+	 * the ";jsessionid=" segment is kept, so RFD checks on the originating
+	 * request URI see the same extension the client sent (CVE-2020-5421).
+	 */
+	private String decodeAndCleanUriString(HttpServletRequest request, String uri, boolean removeJsessionid) {
+		uri = (removeJsessionid || this.removeSemicolonContent ? removeSemicolonContent(uri) : uri);
 		uri = decodeRequestString(request, uri);
 		uri = getSanitizedPath(uri);
 		return uri;
@@ -540,13 +549,19 @@ public class UrlPathHelper {
 	}
 
 	private String removeJsessionid(String requestUri) {
-		int startIndex = requestUri.toLowerCase(Locale.ROOT).indexOf(";jsessionid=");
-		if (startIndex != -1) {
-			int endIndex = requestUri.indexOf(';', startIndex + 12);
-			String start = requestUri.substring(0, startIndex);
-			requestUri = (endIndex != -1) ? start + requestUri.substring(endIndex) : start;
+		String key = ";jsessionid=";
+		int index = requestUri.toLowerCase(Locale.ROOT).indexOf(key);
+		if (index == -1) {
+			return requestUri;
 		}
-		return requestUri;
+		String start = requestUri.substring(0, index);
+		for (int i = index + key.length(); i < requestUri.length(); i++) {
+			char c = requestUri.charAt(i);
+			if (c == ';' || c == '/') {
+				return start + requestUri.substring(i);
+			}
+		}
+		return start;
 	}
 
 	/**

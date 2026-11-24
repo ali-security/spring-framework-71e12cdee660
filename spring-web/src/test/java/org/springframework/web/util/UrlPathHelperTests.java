@@ -411,6 +411,14 @@ public class UrlPathHelperTests {
 	}
 
 	@Test
+	public void getOriginatingRequestUriKeepsJsessionidWhenKeepingSemicolonContent() {
+		helper.setRemoveSemicolonContent(false);
+		request.setRequestURI("/foo.bat;jsessionid=c0o7fszeb1");
+		assertThat(helper.getOriginatingRequestUri(request)).isEqualTo("/foo.bat;jsessionid=c0o7fszeb1");
+		assertThat(helper.getRequestUri(request)).isEqualTo("/foo.bat");
+	}
+
+	@Test
 	public void getOriginatingRequestUriWebsphere() {
 		request.setAttribute(WEBSPHERE_URI_ATTRIBUTE, "/path");
 		request.setRequestURI("/forwarded");
